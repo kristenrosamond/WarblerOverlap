@@ -1,0 +1,122 @@
+---
+title: "WarblerOverlap_Lucy_Exploration - Lucy's Warbler Data Exploration"
+author: "Kristen Rosamond"
+output: html_document
+---
+
+2) Data exploration
+Install all necessary packages for data exploration: `data.table` package and `tidyverse` package.
+```{r}
+library(data.table)
+library(tidyverse)
+```
+Load in Lucy's warbler data file as a data frame and summarize data.
+```{r}
+Lucys_warbler_data<-fread("/ebd_filtered_subset.csv",data.table=FALSE)
+summary(Lucys_warbler_data)
+```
+Table showing the number of Lucy's warbler individuals by country.
+```{r}
+Lucys_warbler_country_table<-table(Lucys_warbler_data$common_name, Lucys_warbler_data$country)
+Lucys_warbler_country_table
+```
+Table showing the number of Lucy's warbler individuals by county.
+```{r}
+Lucys_warbler_county_table<-table(Lucys_warbler_data$common_name, Lucys_warbler_data$county)
+Lucys_warbler_county_table
+```
+Bar graph showing countries with recorded Lucy's warbler sightings.
+```{r}
+ggplot(data=Lucys_warbler_data,mapping = aes(x = country, y = common_name)) +
+  labs(title = "Species observations by country", x = "Country",y = "Species") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5),axis.text.y = element_text(angle=90,hjust=-1.5)) +
+  geom_bar(stat="identity")
+```
+  
+Bar graph showing states with recorded Lucy's warbler sightings.
+```{r}
+ggplot(data=Lucys_warbler_data,mapping = aes(x = state, y = common_name)) +
+    labs(title = "Species observations by state", x = "State",y = "Species") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) + #reposition title
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),axis.text.y = element_text(angle=90,hjust=-1)) + #make x-axis labels vertical
+  geom_bar(stat="identity")
+```
+  
+Bar graph showing counties with recorded Lucy's warbler sightings.
+```{r}
+ggplot(data=Lucys_warbler_data,mapping = aes(x = county, y = common_name)) +
+    labs(title = "Species observations by county", x = "County",y = "Species") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) + #reposition title
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),axis.text.y = element_text(angle=90,hjust=-.85)) + #make x-axis and y-axis labels vertical and reposition them
+  geom_bar(stat="identity")
+```
+  
+Visualize Lucy's warblers distribution on a global scale.
+```{r}
+world<-map_data("world") #create a data frame of global map data
+world_map<-ggplot() + geom_polygon(data = world, aes(x=long, y = lat, group = group)) +
+  coord_fixed(1.3)
+  labs <- data.frame(
+  long = Lucys_warbler_data$longitude,
+  lat = Lucys_warbler_data$latitude,
+  stringsAsFactors = FALSE
+  )
+world_map + 
+  geom_point(data = Lucys_warbler_data, aes(x = longitude, y = latitude,color=common_name), size = 1, show.legend=FALSE) + #add points, remove legend
+  ggtitle("Global Distribution of Lucy's Warblers") + #add title
+  theme_classic() #add classic theme (has no gridlines)
+```
+  
+Table showing the number of Lucy's warbler individuals by US state.
+```{r}
+Lucys_warbler_USA <- subset(Lucys_warbler_data, country_code == "US") #create new data frame with subset of data containing only warblers in USA
+Lucys_warbler_state_table<-table(Lucys_warbler_USA$common_name, Lucys_warbler_USA$state)
+Lucys_warbler_state_table
+```
+Visualize Lucy's warblers distribution in the United States.
+```{r}
+states<-map_data("state") #create data frame of polygons that show state boundaries
+world_map<-ggplot() + geom_polygon(data = states, aes(x=long, y = lat, group = group),color="black",fill="white") +
+  coord_fixed(1.3)
+  labs <- data.frame(
+  long = Lucys_warbler_USA$longitude,
+  lat = Lucys_warbler_USA$latitude,
+  stringsAsFactors = FALSE
+  )
+world_map + 
+  geom_point(data = Lucys_warbler_USA, aes(x = longitude, y = latitude,color=common_name), color="turquoise",size = 1,show.legend=FALSE) + #add points, change color to turquoise, remove legend
+  ggtitle("Distribution of Lucy's Warblers in the United States") + #add title
+  theme_classic() #add classic theme (has no gridlines)
+```
+  
+Table showing the number of Lucy's warbler individuals by county in Arizona.
+```{r}
+Lucys_warbler_AZ <- subset(Lucys_warbler_data, state_code == "US-AZ") #create new data frame with subset of data containing only warblers in Arizona
+Lucys_warbler_AZ_table<-table(Lucys_warbler_AZ$common_name, Lucys_warbler_AZ$county)
+Lucys_warbler_AZ_table
+```
+
+Visualize Lucy's warbler individuals in state of Arizona with county boundaries visible. Zoom in on Arizona and look at counties. First get a state data.frame with a single state for the outline of AZ. Then create a counties data.frame of the counties in AZ.
+```{r}
+az_df <- subset(states, region == "arizona")
+```
+Plot the state and use `theme_void` to get rid of grid lines, axes, etc.
+```{r}
+counties <- map_data("county")
+az_county <- subset(counties, region == "arizona")
+az_base <- ggplot(data = az_df, mapping = aes(x = long, y = lat, group = group)) + 
+  coord_fixed(1.3) + 
+  geom_polygon(color = "black", fill = "gray")
+az_base + theme_void()
+```
+  
+Add points, county lines, and title.
+```{r}
+az_base + theme_minimal() + 
+  geom_polygon(data = az_county, fill = NA, color = "white") +
+  geom_polygon(color = "black", fill = NA) +
+  geom_point(data = Lucys_warbler_AZ, aes(x = longitude, y = latitude,color=common_name), color="red",size = 1,show.legend=FALSE,inherit.aes=FALSE) + theme_void() + ggtitle("Lucy's warblers in AZ counties")
+```

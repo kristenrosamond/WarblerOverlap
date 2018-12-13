@@ -1,0 +1,249 @@
+---
+title: "Warbler Overlap Project"
+output: html_document
+author: Kristen Rosamond
+---
+
+Methods: I will use data of Parulidae warbler sightings from the eBird citizen science database. I will construct a grid over the Americas showing abundance of species at each grid square. I will use # of complete checklists for each species divided by # of total complete checklists to weight the data by effort.
+
+Hypothesis: Parulidae warbler species overlaps differ between summer and winter.
+
+1) Data Preparation
+These data were collected by numerous different observers who submitted their bird sightings to the eBird database. I downloaded the full eBird database (including all reported sightings of all species) from the eBird website.
+
+Data description:
+Column 1: Global unique identifier - Unique alphanumeric code assigned to each record that stays with it through database revisions, updates, and edits.
+
+Column 2: Last edited date - Date and time of most recent edit to the observation
+
+Column 3: Taxonomic order - Numeric value assigned to the taxon in the eBird taxonomy
+
+Column 4: Category - Ex. species, hybrid, slash
+
+Column 5: Common name - Primary English common name of the taxon in the eBird taxonomy
+
+Column 6: Scientific name - Scientific name of the taxon
+
+Column 7: Subspecies common name - Common name of the subspecies or subspecies group in the eBird taxonomy
+
+Column 8: Subspecies scientific name - Scientific name of the subspecies or subspecies group
+
+Column 9: Observation count - Count of individuals made at the time of observation. If no count was made, an 'X' is used to indicate presence.
+
+Column 10: Breeding Bird Atlas code - Four categories used to describe a species' breeding status based on the 'BREEDING BIRD ATLAS CODE' reported on the eBird checklist: C1 – Observed; C2 – Possible; C3 – Probable; C4 – Confirmed
+
+Column 11: Age/Sex - Age = adult, immature, or juvenile; Sex = male, female, or unknown
+
+Column 12: Country - Country where the observation was made
+
+Column 13: Country code - Abbreviation for country where observation was made
+
+Column 14: State - State/province where the observation was made
+
+Column 15: State code - Abbreviation for state where observation was made
+
+Column 16: County - County where the observation was made
+
+Column 17: County code - Abbreviation for county where observation was made
+
+Column 18: IBA code - Alphanumeric code for an Important Bird Area
+
+Column 19: BCR code - Alphanumeric code for a Bird Conservation Region
+
+Column 20: USFWS code - Alphanumeric code for a United States Fish and Wildlife Service land holding
+
+Column 21: Atlas block -  Sampling units called blocks have been established for specific atlas projects run within eBird. Each block is coded with a 2-letter code: northwest (NW), northeast (NE), center- west (CW), center-east (CE), southwest (SW), or southeast (SE).
+
+Column 22: Locality ID - Unique alphanumeric code for a location
+
+Column 23: Locality type - Helps define the type of location used, as participants in eBird can plot specific locations on a map (P), choose existing locations from a map (H), or choose to submit data for a town (T), postal code (PC), county (C), or state (S). Abbreviations: State (S), County (C), Postal/Zip Code (PC), Town (T), Hotspot (H), Personal (P).
+
+Column 24: Latitude - Latitude of the observation in decimal degrees
+
+Column 25: Longitude - Longitude of the observation in decimal degrees
+
+Column 26: Observation date - Date of the observation expressed as year-month-day
+
+Column 27: Time observations started - Time observations were initiated based on the 24- hour clock (military time)
+
+Column 28: Observer ID - Unique number associated with each eBird observer
+
+Column 29: Sampling event identifier - Unique number associated with the sampling event (eBird checklist). Each sampling event has a unique combination of location, date, observer, and start time. A sampling event can contain one or many species, all of which share this unique identifier.
+
+Column 30: Protocol type - Type of survey associated with this sampling event (ex. traveling count, stationary count, casual observation)
+
+Column 31: Protocol code - Unique code used to identify type of protocol
+
+Column 32: Project code - Designates which portal the data came through
+
+Column 33: Duration minutes - Duration of the sampling event in minutes
+
+Column 34: Effort Distance (km) - Distance traveled during the sampling event in kilometers
+
+Column 35: Effort area (ha) - Area covered during the sampling event in hectares
+
+Column 36: Number observers - Total number of observers participating in the sampling event
+
+Column 37: All species reported - Observers answer 'yes' (1) to this question when they are reporting all species detected by sight and by ear to the best of their ability on a given checklist (sampling event). Observers answer 'no' (0) to this question when they are only reporting a selection of species from an outing, usually the highlights or unusual birds.
+
+Column 38: Group identifier - When multiple observers participate in the same sampling event, they can share checklists. If a checklist is shared between multiple observers, it is given a GROUP ID number.
+
+Column 39: Has media - Indicates whether a particular observation is supported by rich media stored at the Cornell Lab of Ornithology's Macaulay Library
+
+Column 40: Approved - The status of the record within the eBird data quality process. If "Approved", the record is deemed acceptable. If "Not Approved" the record has been deemed unacceptable by the review processes.
+
+Column 41: Reviewed - "Not Reviewed" means the record passed through the automated filters without problems, that the species, date, and count were within expected levels, and that the record has otherwise not been reviewed by a reviewer. "Reviewed" means that the record triggered a higher-level review process, either through an automated or manual process, and that it was vetted by a regional editor. (1 = yes; 0 = no).
+
+Column 42: Reason - The reason the record was "Not Approved" -> "Species—Introduced/Exotic"
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Check and clean data:
+
+Install all necessary packages for data cleaning: `auk` package and `data.table` package. The `auk` package filters and pre-processes eBird data. The `data.table` package contains the `fread` function.
+```{r}
+library(auk)
+library(data.table)
+```
+I then defined a variable for the path to the folder in my external hard drive that contains my downloaded eBird data.
+```{r}
+ebd_dir <- "/Volumes/MyPassport/WarblerOverlap"
+```
+I defined file paths for the raw eBird data that I already have saved, as well as for the cleaned eBird data file that I am about to create. The auk_clean function drops unnecessary or problematic records from the raw data file, including rows containing special characters or blank columns.
+```{r}
+f <- file.path(ebd_dir, "data/raw_data/ebd_relAug-2018.txt")
+f_clean <- file.path(ebd_dir, "data/cleaned_data/ebd_relAug-2018_cleaned.txt")
+auk_clean(f, f_out = f_clean, remove_text = TRUE)
+```
+Next, I defined file paths for the eBird sampling event data, which is a separate file from the main eBird raw data file. I will also clean the sampling event data file using auk_clean.
+```{r}
+f_sampling <- file.path(ebd_dir, "data/raw_data/ebd_sampling_relAug-2018.txt")
+f_sampling_clean <- file.path(ebd_dir, "data/cleaned_data/ebd_sampling_relAug-2018_cleaned.txt")
+auk_clean(f, f_out = f_sampling_clean, remove_text = TRUE)
+```
+Next, I defined paths to the eBird data file and the sampling event data file. I then used the auk_ebd function to create an object referencing the files.
+```{r}
+f_in_ebd <- file.path(ebd_dir, "data/cleaned_data/ebd_relAug-2018_cleaned.txt") #define paths to ebd file
+f_in_sampling <- file.path(ebd_dir, "data/cleaned_data/ebd_sampling_relAug-2018_cleaned.txt") #define paths to sampling file
+auk_ebd(file = f_in_ebd, file_sampling = f_in_sampling) #create an object referencing the file
+```
+I defined filters including all Parulidae warbler species. I filtered the data from a 10 year period from 2008 to 2018. I included only complete checklists. A complete checklist means that the observer reported all bird species that they saw or heard.
+```{r}
+ebd_filters <- auk_ebd(f_in_ebd, f_in_sampling) %>%
+  auk_species(c("Lucy’s warbler", "Virginia’s warbler", "Nashville warbler", "Orange-crowned warbler", "Tennessee warbler", "Connecticut warbler", "Mourning warbler", "MacGillivray's warbler", "Common yellowthroat", "Kentucky warbler", "Blackpoll warbler", "Chestnut-sided warbler", "Yellow warbler", "Blackburnian warbler", "Bay-breasted warbler", "Black-throated green warbler", "Hermit warbler", "Townsend’s warbler", "Black-throated gray warbler", "Grace’s warbler", "Prairie warbler", "Yellow-rumped warbler", "Yellow-throated warbler", "Pine warbler", "Palm warbler", "Black-throated blue warbler", "Magnolia warbler", "Cape May warbler", "Northern parula", "Cerulean warbler", "Hooded warbler", "American redstart", "Louisiana waterthrush", "Northern waterthrush", "Canada warbler", "Wilson’s warbler", "Blue-winged warbler", "Golden-winged warbler", "Swainson’s warbler", "Prothonotary warbler", "Black-and-white warbler", "Worm-eating warbler", "Ovenbird", "Colima warbler", "Tropical parula", "Golden-cheeked warbler", "Kirtland’s warbler", "Red-faced warbler", "Painted redstart")) %>%
+  auk_date(c("2008-12-15", "2018-07-15")) %>% #filter dates
+  auk_complete()
+ebd_filters
+```
+I defined paths where the new filtered data will be saved. auk_filter compiles all of the filters that I defined above into a script that will filter the data.
+```{r}
+f_out_ebd <- "data/cleaned_data/ebd_Parulidae.csv"
+f_out_sampling <- "data/cleaned_data/ebd_Parulidae_sampling.txt"
+ebd_filtered <- auk_filter(ebd_filters, file = f_out_ebd,
+                           file_sampling = f_out_sampling)
+```
+Next, I read in the filtered eBird data file and view it in R.
+```{r}
+ebd <- read_ebd(f_out_ebd)
+ebd_raw <- read_ebd(f_out_ebd, rollup = FALSE) #read in raw data with no species rollup
+```
+I originally used the fread function to quickly read in the filtered eBird data. I commented this code out because I realized that I would need to set rollup equal to FALSE as I did in the above code. This prevents all of the warbler subspecies being automatically rolled up to the species level. Some of the species that I included have non-migratory subspecies, so I need to keep the subspecies categories separate so that I can remove all non-migratory subspecies later.
+```{r}
+#ebd<-fread("/Volumes/MyPassport/WarblerOverlap/data/ebd_Parulidae.csv",data.table=FALSE) #read in filtered ebird data as a data frame
+ebd_raw2<-subset(ebd_raw,select=-c(1,3,10,11,12,14,16,19,20,21,23,24,30,31,33,36,39,43)) #remove unnecessary columns
+```
+Create a data frame with Nashville Warbler data. Then create a data frame with data from only migratory Nashville Warbler subspecies.
+```{r}
+ebd_ruficapilla <- subset(ebd_raw2, common_name == "Nashville Warbler")
+ebd_ruficapilla2 <- ebd_ruficapilla[ebd_ruficapilla$subspecies_scientific_name %in% c("Oreothlypis ruficapilla ridgwayi","Oreothlypis ruficapilla ruficapilla"),]
+```
+Create a data frame with Common Yellowthroat data. Then create a data frame with data from only migratory Common Yellowthroat subspecies.
+```{r}
+ebd_trichas <- subset(ebd_raw2, common_name == "Common Yellowthroat")
+ebd_trichas2<-ebd_trichas[ebd_trichas$subspecies_scientific_name %in% c("Geothlypis trichas [arizela Group]","Geothlypis trichas [trichas Group]"),]
+```
+Create a data frame with Yellow-rumped Warbler data. Then create a data frame with data from only migratory Yellow-rumped Warbler subspecies.
+```{r}
+ebd_coronata <- subset(ebd_raw2, common_name == "Yellow-rumped Warbler")
+ebd_coronata2<-ebd_coronata[ebd_coronata$subspecies_scientific_name %in% c("Setophaga coronata coronata","Setophaga coronata audubon"),]
+```
+Create a data frame with Yellow Warbler data. Then create a data frame with data from only migratory Yellow Warbler subspecies.
+```{r}
+ebd_petechia<-subset(ebd_raw2, common_name == "Yellow Warbler")
+ebd_petechia2<-ebd_petechia[ebd_petechia$subspecies_scientific_name %in% c("Setophaga petechia [aestiva Group]"),]
+```
+Remove data from Nashville warbler, Common Yellowthroat, Yellow-rumped warbler, and Yellow warbler from the main eBird data frame.
+```{r}
+ebd_raw2 <- droplevels( ebd_raw2[-which(ebd_raw2$common_name == "Nashville Warbler"), ] ) #remove Nashville warbler data from main eBird dataframe
+ebd_raw2 <- droplevels( ebd_raw2[-which(ebd_raw2$common_name == "Common Yellowthroat"), ] ) #remove Common Yellowthroat data from main eBird dataframe
+ebd_raw2 <- droplevels( ebd_raw2[-which(ebd_raw2$common_name == "Yellow-rumped Warbler"), ] ) #remove Yellow-rumped warbler data from main eBird dataframe
+ebd_raw2 <- droplevels( ebd_raw2[-which(ebd_raw2$common_name == "Yellow Warbler"), ] ) #remove Yellow warbler data from main eBird dataframe
+```
+Recombine data from all species with non-migratory subspecies removed
+```{r}
+ebird_data<-rbind(ebd_raw2, ebd_ruficapilla2, ebd_trichas2, ebd_coronata2, ebd_petechia2)
+```
+Convert dates into objects of class "Date" representing calendar dates 
+```{r}
+ebird_data$observation_date <- as.Date(ebird_data$observation_date, format= "%Y-%m-%d")
+```
+Create subsets of the data from each season of each year in separate data frames.
+```{r}
+winter_2008<-ebird_data[(ebird_data$observation_date > "2008-12-15" & ebird_data$observation_date < "2009-01-31"),] #filter all data from 12/15/2008 to 1/31/2009 into a new data frame called winter_2008
+summer_2009<-ebird_data[(ebird_data$observation_date > "2009-06-01" & ebird_data$observation_date < "2009-07-15"),] #filter all data from 6/1/2009 to 7/15/2009 into a new data frame called summer_2009
+winter_2009<-ebird_data[(ebird_data$observation_date > "2009-12-15" & ebird_data$observation_date < "2010-01-31"),] #filter all data from 12/15/2009 to 1/31/2010 into a new data frame called winter_2009
+summer_2010<-ebird_data[(ebird_data$observation_date > "2010-06-01" & ebird_data$observation_date < "2010-07-15"),] #filter all data from 6/1/2010 to 7/15/2010 into a new data frame called summer_2010
+winter_2010<-ebird_data[(ebird_data$observation_date > "2010-12-15" & ebird_data$observation_date < "2011-01-31"),] #filter all data from 12/15/2010 to 1/31/2011 into a new data frame called winter_20010
+summer_2011<-ebird_data[(ebird_data$observation_date > "2011-06-01" & ebird_data$observation_date < "2011-07-15"),] #filter all data from 6/1/2011 to 7/15/2011 into a new data frame called summer_2011
+winter_2011<-ebird_data[(ebird_data$observation_date > "2011-12-15" & ebird_data$observation_date < "2012-01-31"),] #filter all data from 12/15/2011 to 1/31/2012 into a new data frame called winter_2011
+summer_2012<-ebird_data[(ebird_data$observation_date > "2012-06-01" & ebird_data$observation_date < "2012-07-15"),] #filter all data from 6/1/2012 to 7/15/2012 into a new data frame called summer_2012
+winter_2012<-ebird_data[(ebird_data$observation_date > "2012-12-15" & ebird_data$observation_date < "2013-01-31"),] #filter all data from 12/15/2012 to 1/31/2013 into a new data frame called winter_2012
+summer_2013<-ebird_data[(ebird_data$observation_date > "2013-06-01" & ebird_data$observation_date < "2013-07-15"),] #filter all data from 6/1/2013 to 7/15/2013 into a new data frame called summer_2013
+winter_2013<-ebird_data[(ebird_data$observation_date > "2013-12-15" & ebird_data$observation_date < "2014-01-31"),] #filter all data from 12/15/2013 to 1/31/2014 into a new data frame called winter_2013
+summer_2014<-ebird_data[(ebird_data$observation_date > "2014-06-01" & ebird_data$observation_date < "2014-07-15"),] #filter all data from 6/1/2014 to 7/15/2014 into a new data frame called summer_2014
+winter_2014<-ebird_data[(ebird_data$observation_date > "2014-12-15" & ebird_data$observation_date < "2015-01-31"),] #filter all data from 12/15/2014 to 1/31/2015 into a new data frame called winter_2014
+summer_2015<-ebird_data[(ebird_data$observation_date > "2015-06-01" & ebird_data$observation_date < "2015-07-15"),] #filter all data from 6/1/2015 to 7/15/2015 into a new data frame called summer_2015
+winter_2015<-ebird_data[(ebird_data$observation_date > "2015-12-15" & ebird_data$observation_date < "2016-01-31"),] #filter all data from 12/15/2015 to 1/31/2016 into a new data frame called winter_2015
+summer_2016<-ebird_data[(ebird_data$observation_date > "2016-06-01" & ebird_data$observation_date < "2016-07-15"),] #filter all data from 6/1/2016 to 7/15/2016 into a new data frame called summer_2016
+winter_2016<-ebird_data[(ebird_data$observation_date > "2016-12-15" & ebird_data$observation_date < "2017-01-31"),] #filter all data from 12/15/2016 to 1/31/2017 into a new data frame called winter_2016
+summer_2017<-ebird_data[(ebird_data$observation_date > "2017-06-01" & ebird_data$observation_date < "2017-07-15"),] #filter all data from 6/1/2017 to 7/15/2017 into a new data frame called summer_2017
+winter_2017<-ebird_data[(ebird_data$observation_date > "2017-12-15" & ebird_data$observation_date < "2018-01-31"),] #filter all data from 12/15/2017 to 1/31/2018 into a new data frame called winter_2017
+summer_2018<-ebird_data[(ebird_data$observation_date > "2018-06-01" & ebird_data$observation_date < "2018-07-15"),] #filter all data from 6/1/2018 to 7/15/2018 into a new data frame called summer_2018
+```
+Combine the summer and winter data from all years into one data frame
+```{r}
+ebird_data2<-rbind(winter_2008, summer_2009, winter_2009, summer_2010, winter_2010, summer_2011, winter_2011, summer_2012, winter_2012, summer_2013, winter_2013, summer_2014, winter_2014, summer_2015, winter_2015, summer_2016, winter_2016, summer_2017, winter_2017, summer_2018)
+```
+Create a csv file with the final combined data from each season.
+```{r}
+write.csv(ebird_data2, file = "/Volumes/MyPassport/WarblerOverlap/data/cleaned_data/ebird_data_final.csv") #save all necessary ebird data in csv file
+```
+
+2) Exploratory data analysis
+
+Install all necessary packages for data exploration: `data.table` package and `tidyverse` package.
+```{r}
+library(data.table)
+library(tidyverse)
+```
+
+Create a world map with coordinates as plotted points.
+```{r}
+ebird_data3<-fread("/Volumes/MyPassport/WarblerOverlap/data/cleaned_data/ebird_data_final.csv",data.table=FALSE)
+world<-map_data("world")
+world_map<-ggplot() + geom_polygon(data = world, aes(x=long, y = lat, group = group)) + 
+  coord_fixed(1.3)
+  labs <- data.frame(
+  long = ebird_data3$longitude,
+  lat = ebird_data3$latitude,
+  stringsAsFactors = FALSE
+  )
+world_map + 
+  geom_point(data = ebird_data3, aes(x = longitude, y = latitude,color=common_name), size = 1)
+```
+Create table showing # of each warbler species by country.
+```{r}
+species_location_table<-table(ebird_data3$common_name, ebird_data3$country_code)
+species_location_table
+```
