@@ -12,7 +12,7 @@ library(tidyverse)
 ```
 Load in Lucy's warbler data file as a data frame and summarize data.
 ```{r}
-Lucys_warbler_data<-fread("/ebd_filtered_subset.csv",data.table=FALSE)
+Lucys_warbler_data<-fread("data/ebd_filtered_subset.csv",data.table=FALSE)
 summary(Lucys_warbler_data)
 ```
 Table showing the number of Lucy's warbler individuals by country.
